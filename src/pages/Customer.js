@@ -1,9 +1,11 @@
-import { Link, useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useEffect, useState, useContext } from 'react'
 import NotFound from '../components/NotFound'
 import { baseUrl } from '../shared'
+import { LoginContext } from '../App'
 
 export default function Customer() {
+    const [loggedIn, setLoggedIn] = useContext(LoginContext)
     const { id } = useParams()
     const navigate = useNavigate()
     const [customer, setCustomer] = useState()
@@ -11,6 +13,8 @@ export default function Customer() {
     const [notFound, setNotFound] = useState()
     const [changed, setChanged] = useState(false)
     const [error, setError] = useState()
+
+    const location = useLocation()
 
     useEffect(() => {
         if (!tempCustomer) return
@@ -23,10 +27,22 @@ export default function Customer() {
 
     useEffect(() => {
         const url = baseUrl + 'api/customers/' + id
-        fetch(url)
+        fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + localStorage.getItem('access')
+            }
+        })
             .then((response) => {
                 if (response.status === 404) {
                     setNotFound(true)
+                } else if (response.status === 401) {
+                    setLoggedIn(false)
+                    navigate('/login', {
+                        state: {
+                            previousUrl: location.pathname
+                        }
+                    })
                 }
 
                 if (!response.ok) {
@@ -51,10 +67,19 @@ export default function Customer() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + localStorage.getItem('access')
             },
             body: JSON.stringify(tempCustomer),
         })
             .then((response) => {
+                if (response.status === 401) {
+                    setLoggedIn(false)
+                    navigate('/login', {
+                        state: {
+                            previousUrl: location.pathname
+                        }
+                    })
+                }
                 if (!response.ok) throw new Error('Something went wrong')
                 return response.json()
             })
@@ -108,7 +133,6 @@ export default function Customer() {
                                 <input
                                     className='bg-gray-200 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-purple-500'
                                     id='industry'
-                                    // className='m-2 block px-2'
                                     type='text'
                                     value={tempCustomer.industry}
                                     onChange={(e) => {
@@ -144,15 +168,24 @@ export default function Customer() {
                     <div>
                         <button
                             className='bg-slate-800 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded'
-                            onClick={() => {
+                            onClick={(e) => {
                                 const url = baseUrl + 'api/customers/' + id
                                 fetch(url, {
                                     method: 'DELETE',
                                     headers: {
                                         'Content-Type': 'application/json',
+                                        Authorization: 'Bearer ' + localStorage.getItem('access')
                                     },
                                 })
                                     .then((response) => {
+                                        if (response.status === 401) {
+                                            setLoggedIn(false)
+                                            navigate('/login', {
+                                                state: {
+                                                    previousUrl: location.pathname
+                                                }
+                                            })
+                                        }
                                         if (!response.ok) {
                                             throw new Error(
                                                 'Something went wrong'
